@@ -26,9 +26,8 @@ cask "freetube" do
   # FreeTube ships an ad-hoc signed, unnotarized app, so macOS refuses to launch it
   # while the quarantine attribute is set. The download is pinned by the sha256 above
   # and verified by Homebrew before this runs; the app bundle itself is untouched.
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-dr", "com.apple.quarantine", "#{appdir}/FreeTube.app"]
+  postflight_steps do
+    run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{appdir}}/FreeTube.app"]
   end
 
   uninstall quit: "io.freetubeapp.freetube"
