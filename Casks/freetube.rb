@@ -8,7 +8,6 @@ cask "freetube" do
   # Upstream tags every GitHub release as a pre-release, so the stable build is
   # published under a "-beta" tag and file name.
   url "https://github.com/FreeTubeApp/FreeTube/releases/download/v#{version}-beta/freetube-#{version}-beta-mac-#{arch}.dmg"
-
   name "FreeTube"
   desc "YouTube player focusing on privacy"
   homepage "https://freetubeapp.io/"
@@ -18,7 +17,7 @@ cask "freetube" do
     regex(/^v?(\d+(?:\.\d+)+)/i)
   end
 
-  depends_on macos: ">= :monterey"
+  depends_on macos: :monterey
 
   app "FreeTube.app"
 
