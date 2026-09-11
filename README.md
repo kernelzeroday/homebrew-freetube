@@ -15,7 +15,14 @@ disable! date: "2026-09-01", because: :fails_gatekeeper_check
 Disabled because it does not pass the macOS Gatekeeper check! It was disabled on 2026-09-01.
 ```
 
-A disabled cask cannot be installed at all — not with `--no-quarantine`, not with `--force`. The flag that would normally work around this is unreachable, so users are left with a manual `.dmg` download and a trip through System Settings, or nothing.
+A disabled cask cannot be installed at all — not with `--no-quarantine`, not with `--force` — and the unqualified name does not fall back to this tap either:
+
+```
+$ brew install --cask freetube
+Warning: Not upgrading freetube, it is disabled because it does not pass the macOS Gatekeeper check! It was disabled on 2026-09-01.
+```
+
+That command exits 0 and changes nothing on disk. Users are left with a manual `.dmg` download and a trip through System Settings, or nothing at all.
 
 **This tap provides the missing cask.** It installs the same upstream artifact the official cask pointed at, pinned by SHA256, with the quarantine attribute cleared after installation so the app launches.
 
@@ -73,7 +80,7 @@ $ spctl --assess --type execute -vvv /Applications/FreeTube.app
 /Applications/FreeTube.app: rejected
 ```
 
-Gatekeeper only evaluates apps that carry the quarantine attribute. Clear the attribute on a hash-verified artifact and the app runs normally; leave it and macOS 15+ shows "FreeTube is damaged and can't be opened" with no right-click-to-open bypass. This tap clears it in a `postflight` block, immediately after Homebrew has verified the SHA256 of the downloaded disk image.
+Gatekeeper only evaluates apps that carry the quarantine attribute. Clear the attribute on a hash-verified artifact and the app runs normally; leave it and macOS 15+ shows "FreeTube is damaged and can't be opened" with no right-click-to-open bypass. This tap clears it with a declarative `postflight_steps` install step, immediately after Homebrew has verified the SHA256 of the downloaded disk image.
 
 This is not a new idea, and it is not specific to FreeTube: it is the same mechanism every unofficial macOS distribution channel uses. The difference here is that the bytes are pinned to an exact upstream release, so `xattr -dr com.apple.quarantine` is being applied to an artifact whose hash you can check yourself.
 
@@ -101,7 +108,7 @@ shasum -a 256 freetube-0.25.3-beta-mac-arm64.dmg
 # 40fb6c671ec75905e035968ec0c14bfe717643730af80536e625d191455f49bf   (x64)
 ```
 
-Both hashes match the values in Homebrew's own `homebrew-cask` definition of FreeTube 0.25.3, before it was disabled.
+Both hashes match the values in the disabled `homebrew-cask` definition of FreeTube 0.25.3.
 
 ## If you would rather strip the attribute yourself
 
@@ -138,9 +145,11 @@ Then update `version` and the two `sha256` values in `Casks/freetube.rb`, and ch
 
 ```bash
 brew livecheck --cask kernelzeroday/freetube/freetube
-brew audit --cask homebrew-freetube/Casks/freetube.rb
-brew style homebrew-freetube/Casks/freetube.rb
+brew audit --cask --strict kernelzeroday/freetube/freetube
+(cd "$(brew --repository kernelzeroday/freetube)" && brew style Casks/freetube.rb)
 ```
+
+Run `brew style` from inside the tap, as above. Pointed at a loose file outside a tap, it applies the wrong cop set and reports a clean bill of health it has not actually earned.
 
 ## Troubleshooting
 
@@ -151,15 +160,20 @@ xattr -l /Applications/FreeTube.app
 xattr -dr com.apple.quarantine /Applications/FreeTube.app
 ```
 
-**Coming from the official cask.** The old install is managed by a cask that no longer exists in installable form. Remove it before installing from this tap:
+**Coming from the official cask.** `brew uninstall --cask freetube` cannot clean up the old install: the unqualified name resolves to the cask Homebrew disabled, and that definition can no longer be loaded. Upgrade straight through instead — this replaces the old install in one step and leaves `~/Library/Application Support/FreeTube` (subscriptions, settings, playlists) untouched:
 
 ```bash
-brew uninstall --cask freetube
+brew upgrade --cask kernelzeroday/freetube/freetube
 ```
 
-This leaves `~/Library/Application Support/FreeTube` alone, so subscriptions, settings, and playlists survive.
+To start clean instead, delete the bundle and let Homebrew forget the old install:
 
-**`Error: Cask 'freetube' is available in multiple taps`.** Use the fully qualified token `kernelzeroday/freetube/freetube`.
+```bash
+rm -rf /Applications/FreeTube.app "$(brew --prefix)/Caskroom/freetube"
+brew install --cask kernelzeroday/freetube/freetube
+```
+
+**`Warning: Not upgrading freetube, it is disabled...`.** The unqualified name resolves to `homebrew-cask`'s disabled copy, not this tap's. Use the fully qualified token `kernelzeroday/freetube/freetube` for install, upgrade, and uninstall.
 
 ---
 
